@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sumo Interview Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    max-width: 720px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    line-height: 1.55;
+    background: #f7f3ec;
+    color: #1c1a16;
+  }
+  h1 {
+    font-size: 1.75rem;
+    border-bottom: 2px solid #8b1a1a;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    color: #6b5e4a;
+    font-style: italic;
+    margin-top: 0.25rem;
+  }
+  .controls {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 1.25rem 0;
+  }
+  button, select {
+    font: inherit;
+    padding: 0.5rem 1rem;
+    border: 1px solid #8b1a1a;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  button {
+    background: #8b1a1a;
+    color: #fffdf8;
+  }
+  button:hover { background: #6e1414; }
+  select {
+    background: #fffdf8;
+    color: #8b1a1a;
+  }
+  .interview {
+    margin: 1rem 0;
+    padding: 1rem 1.25rem;
+    background: #fffdf8;
+    border: 1px solid #d9cdb3;
+    border-radius: 4px;
+  }
+  .meta {
+    color: #6b5e4a;
+    font-style: italic;
+    margin: 0 0 0.75rem 0;
+  }
+  .q, .a {
+    margin: 0.35rem 0;
+  }
+  .q { color: #8b1a1a; }
+  .a { margin-left: 1.25rem; margin-bottom: 0.9rem; }
+  .speaker {
+    display: inline-block;
+    font-weight: bold;
+    margin-right: 0.45rem;
+    min-width: 1.5rem;
+  }
+  footer {
+    margin-top: 2rem;
+    color: #6b5e4a;
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1614; color: #eee; }
+    .interview { background: #221c18; border-color: #443a30; }
+    .meta { color: #b9a98c; }
+    .q { color: #d97a7a; }
+    .a { color: #f1ead8; }
+    select { background: #221c18; color: #d97a7a; }
+  }
+</style>
+</head>
+<body>
+<h1>Sumo Interview Generator</h1>
+<p class="subtitle">Press the button. Receive thoughts. Probably about sumo.</p>
+
+<div class="controls">
+  <button id="generate" type="button">New Interview</button>
+  <label for="mode" style="margin-left:0.25rem;">Setting:</label>
+  <select id="mode">
+    <option value="pre">Pre-bout</option>
+    <option value="post" selected>Post-bout</option>
+    <option value="champ">Yusho winner</option>
+    <option value="injury">Asked about an injury</option>
+    <option value="promotion">Promotion ceremony</option>
+  </select>
+</div>
+
+<div id="output" class="interview"></div>
+
+<footer>All quotes are fictional. All sumo is sumo.</footer>
+
+<script>
+(function () {
+  const rikishi = [
+    "Hoshoryu", "Onosato", "Kotonowaka", "Terunofuji", "Wakatakakage",
+    "Takakeisho", "Daieisho", "Atamifuji", "Kirishima", "Tobizaru",
+    "Shodai", "Abi", "Ura", "Takanosho", "Midorifuji"
+  ];
+
+  const tournaments = ["Hatsu", "Haru", "Natsu", "Nagoya", "Aki", "Kyushu"];
+  const bodyParts  = ["knee", "shoulder", "ankle", "lower back", "elbow", "neck"];
+  const venues     = ["the hanamichi", "backstage", "the supporters' room", "the dressing room"];
+  const outcomes   = ["after a win", "after a loss", "after a hard-fought bout", "after a quick win"];
+
+  const questionsByMode = {
+    pre: [
+      "How is your condition heading into tomorrow?",
+      "Tomorrow you face {opp}. Any thoughts?",
+      "Have you prepared anything special for this basho?",
+      "Are you feeling any pressure going in?",
+      "What kind of sumo do you want to show this {basho}-basho?",
+      "Your stablemaster said you've been training hard. How do you feel?",
+      "Is there a rikishi you particularly want to face?"
+    ],
+    post: [
+      "How did today's bout feel?",
+      "What was the key to the win?",
+      "What's your impression of {opp} today?",
+      "Did you change your approach at all today?",
+      "Anything you'd like to say to your supporters?",
+      "How would you assess your own sumo today?",
+      "You looked calm out there. Were you?",
+      "What will you focus on for tomorrow?"
+    ],
+    champ: [
+      "Congratulations on the yusho. How do you feel?",
+      "What does this championship mean to you?",
+      "What was the key to winning the {basho}-basho?",
+      "Any message for your stablemates?",
+      "What's next after this?",
+      "Did you imagine this when the basho started?",
+      "Is there someone you want to thank?"
+    ],
+    injury: [
+      "How is your body feeling?",
+      "Are you fully recovered?",
+      "Does the {part} still bother you?",
+      "Were you worried about the injury today?",
+      "Are you holding back at all?",
+      "Did you consider pulling out?",
+      "What does the doctor say?"
+    ],
+    promotion: [
+      "Congratulations on your promotion. How do you feel?",
+      "What did your stablemaster say to you?",
+      "Did you call your family?",
+      "What's the first thought that came to mind?",
+      "Do you feel ready for this rank?",
+      "What will change from tomorrow?",
+      "Any word for the fans who supported you?"
+    ]
+  };
+
+  const answers = [
+    "I just want to keep doing my own sumo.",
+    "I hope my sumo stays good.",
+    "I'll be giving my best.",
+    "I'm not really thinking about it.",
+    "One bout at a time.",
+    "I'm grateful for all the support.",
+    "I'll just focus on what I can do.",
+    "I hope to carry good sumo into tomorrow.",
+    "Nothing in particular.",
+    "I just did the sumo I always do.",
+    "I want my sumo to stay solid.",
+    "I'm not thinking too far ahead.",
+    "I just hope my body holds up.",
+    "Whatever happens, I'll keep doing my sumo.",
+    "I'll do my best so my sumo stays good.",
+    "I won because I was able to do my sumo.",
+    "I lost because I couldn't do my sumo.",
+    "If I do my sumo, the result will follow.",
+    "I'm taking it one day at a time.",
+    "I really can't say much.",
+    "It's hard to put into words.",
+    "I'll just keep training.",
+    "I owe it all to my stable.",
+    "I have no special feelings about it.",
+    "I'm just relieved.",
+    "I want to keep building good sumo.",
+    "I'll think about tomorrow tomorrow."
+  ];
+
+  const fillers = ["", "", "", "Well… ", "Hmm… ", "Yes. ", "Ah… ", "Thank you. "];
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function fill(template, ctx) {
+    return template
+      .replace("{opp}",   ctx.opp)
+      .replace("{basho}", ctx.basho)
+      .replace("{part}",  ctx.part);
+  }
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function generate(mode) {
+    const name = pick(rikishi);
+    const ctx = {
+      opp:   pick(rikishi.filter(r => r !== name)),
+      basho: pick(tournaments),
+      part:  pick(bodyParts),
+      name
+    };
+
+    const pool = questionsByMode[mode] || questionsByMode.post;
+    const count = Math.min(pool.length, 4 + Math.floor(Math.random() * 2)); // 4–5
+    const picks = shuffle(pool).slice(0, count);
+
+    const out = document.getElementById("output");
+    out.innerHTML = "";
+
+    const meta = document.createElement("p");
+    meta.className = "meta";
+    const day = 1 + Math.floor(Math.random() * 15);
+    const setting = mode === "post"
+      ? `${pick(outcomes)}, ${pick(venues)}`
+      : pick(venues);
+    meta.textContent = `Interview with ${ctx.name} — ${setting}. ${ctx.basho}-basho, Day ${day}.`;
+    out.appendChild(meta);
+
+    picks.forEach(qt => {
+      const q = document.createElement("p");
+      q.className = "q";
+      q.innerHTML = '<span class="speaker">Q:</span>' + escapeHtml(fill(qt, ctx));
+      out.appendChild(q);
+
+      const parts = [pick(answers)];
+      if (Math.random() < 0.4) {
+        let extra = pick(answers);
+        while (extra === parts[0]) extra = pick(answers);
+        parts.push(extra);
+      }
+      const a = document.createElement("p");
+      a.className = "a";
+      a.innerHTML = '<span class="speaker">A:</span>' + escapeHtml(pick(fillers) + parts.join(" "));
+      out.appendChild(a);
+    });
+  }
+
+  function escapeHtml(s) {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  document.getElementById("generate").addEventListener("click", () => {
+    generate(document.getElementById("mode").value);
+  });
+  document.getElementById("mode").addEventListener("change", () => {
+    generate(document.getElementById("mode").value);
+  });
+
+  generate("post");
+})();
+</script>
+</body>
+</html>
